@@ -1,6 +1,7 @@
 const { signIn } = require("./signIn");
 const { roomFor } = require("./rooms");
 const { listenForOrderEvents } = require("./orderEvents");
+const { listenForAddonEvents } = require("./addonEvents");
 
 function isSameSite(socket) {
   const { origin, host } = socket.handshake.headers;
@@ -26,6 +27,7 @@ function connectDeliveryXWeb(io) {
     const room = roomFor(socket.data.user);
     if (room) socket.join(room);
     listenForOrderEvents(namespace, socket);
+    listenForAddonEvents(namespace, socket);
   });
 }
 
