@@ -9,6 +9,7 @@ const roles = {
   merchant: { audience: "merchant-web", cookieName: `${cookiePrefix}merchant_session`, profileTable: "merchant_profiles" },
   rider: { audience: "rider-web", cookieName: `${cookiePrefix}rider_session`, profileTable: "rider_profiles" },
   customer: { audience: "customer-app", profileTable: "customer_profiles" },
+  operator: { audience: "operator-dashboard", cookieName: `${cookiePrefix}token`, profileTable: "operator_profiles" },
 };
 
 function readToken(socket, role) {
@@ -41,17 +42,22 @@ async function signIn(socket) {
   );
   const user = users[0];
   if (!user || user.status === "suspended") return null;
-  if (role !== "customer" && payload.tv !== Number(user.token_version)) return null;
+  // Customer and operator tokens carry no tv claim.
+  // The pf (password fingerprint) check is not repeated here on purpose: this socket can only ping the operator's own customers to re-check.
+  const hasTokenVersion = role !== "customer" && role !== "operator";
+  if (hasTokenVersion && payload.tv !== Number(user.token_version)) return null;
 
   const notDeleted = role === "customer" ? " AND deleted_at IS NULL" : "";
+  // operator_profiles has no operator_profiles_id column: an operator is its own operator.
+  const operatorColumn = role === "operator" ? "id" : "operator_profiles_id";
   const [profiles] = await database.query(
-    `SELECT id, operator_profiles_id FROM ${roles[role].profileTable} WHERE user_id = ?${notDeleted}`,
+    `SELECT id, ${operatorColumn} AS operator_id FROM ${roles[role].profileTable} WHERE user_id = ?${notDeleted}`,
     [payload.id],
   );
   const profile = profiles[0];
   if (!profile) return null;
 
-  return { role, profileId: profile.id, operatorId: profile.operator_profiles_id };
+  return { role, profileId: profile.id, operatorId: profile.operator_id };
 }
 
 module.exports = { signIn };
