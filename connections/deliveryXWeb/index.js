@@ -1,5 +1,5 @@
 const { signIn } = require("./signIn");
-const { roomFor } = require("./rooms");
+const { roomFor, merchantsRoom } = require("./rooms");
 const { listenForOrderEvents } = require("./orderEvents");
 const { listenForAddonEvents } = require("./addonEvents");
 
@@ -26,6 +26,8 @@ function connectDeliveryXWeb(io) {
   namespace.on("connection", (socket) => {
     const room = roomFor(socket.data.user);
     if (room) socket.join(room);
+    // A merchant also joins its operator's merchants room, for add-on changes.
+    if (socket.data.user.role === "merchant") socket.join(merchantsRoom(socket.data.user.operatorId));
     listenForOrderEvents(namespace, socket);
     listenForAddonEvents(namespace, socket);
   });
